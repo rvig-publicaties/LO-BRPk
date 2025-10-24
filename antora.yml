@@ -1,7 +1,7 @@
-name: lo-brp
+name: lo-brpk
 version: ~
-title: LO BRP
-start_page: LO-BRP.adoc
+title: LO BRPk
+start_page: LO-BRPk.adoc
 nav: 
 asciidoc:
   attributes:
