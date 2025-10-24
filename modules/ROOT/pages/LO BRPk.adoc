@@ -1,0 +1,1208 @@
+//Titel
+= Logisch ontwerp BRPk
+//Document attributen - moeten direct onder de titel geplaatst zijn
+:doctype: book
+//:docinfo1:
+:version-label: Versie
+:revnumber: 2024.Q1
+:revdate: 1 januari 2024
+:!chapter-signifier:
+:appendix-caption: Bijlage
+:table-caption: Tabel
+:figure-caption: Figuur
+:sectnums:
+:sectnumlevels: 4
+:toc: left
+:toc-title: Inhoud
+:toclevels: 3
+:xrefstyle: short
+:chapter-refsig: hoofdstuk
+:section-refsig: paragraaf
+:appendix-refsig: bijlage
+:stem: latexmath
+:eqnums: all
+
+== Documentinformatie
+
+=== Versiehistorie
+
+[width="100%",cols="13%,17%,12%,58%",options="header",]
+|===
+|Versie |Datum |Auteur |Beschrijving
+|1.0 |27-11-2018 |RvIG |Definitieve versie
+|2024.Q1 |01-01-2024 |RvIG |GBA vervangen door BRP; versienummering aangepast
+|===
+
+=== Versienummering
+
+Van het Logisch Ontwerp PBK verschijnt onregelmatig een nieuwe versie. Het Logisch Ontwerp is voorzien van een versienummer en een versiedatum in de volgende notatie:
+
+* Versienummer: jjjj.Qn[.m] waarin:
+** jjjj het jaartal van verschijnen is
+** Q staat voor 'kwartaal'
+** n het kwartaalnummer van verschijnen is, zodat het versienummer het tijdstip van inwerkingtreding als volgt weerspiegelt:
++
+[.text-center]
+[width="50%",cols="50%,50%",options="header",align="left"]
+|===
+|Kwartaalnummer |Inwerkingtreding
+|1 |januari-maart
+|2 |april-juni
+|3 |juli-september
+|4 |oktober-december
+|===
+** m het volgnummer van een eventuele tussentijdse release is, met dien verstande dat het volgnummer 0 van een hoofdrelease wordt weggelaten.
++
+* Versiedatum: dd ++<++maand++>++ jjjj.
+
+== Inleiding
+
+=== Context
+
+Nederlandse (publieke) dienstverleners, die diensten hebben opengesteld voor dienstafnemers (burgers en organisaties) in de Europese Economische Ruimte (EER), zijn vanuit de Europese eIDAS verordening vanaf september 2018 verplicht om het inloggen met een buitenlands inlogmiddel toe te staan op hun websites. Dat betekent bijvoorbeeld dat een ingezetene van België kan inloggen op een website van de Belastingdienst met zijn eigen inlogmiddel, dat vergelijkbaar is met een middel als DigiD in Nederland.
+
+Tijdens het inloggen bij een Nederlandse dienstverlener ontvangt het Nederlands eIDAS koppelpunt (zie figuur hieronder) identificerende persoonsgegevens vanuit een Europese Lidstaat. Met deze persoonsgegevens vraagt het eIDAS koppelpunt namens de publieke dienstverleners aan het BRP koppelpunt (BRPk) om hierbij het Burgerservicenummer (BSN) van de persoon die inlogt op te zoeken.
+
+Als het BSN is gevonden, stuurt het Nederlandse eIDAS koppelpunt dit mee naar de Nederlandse dienstverlener. Deze kan dan zijn diensten verlenen op basis van het verstrekte BSN en de in zijn administratie opgenomen gegevens van de inloggende burger in plaats van met de buitenlandse persoonsgegevens. Als het BSN niet kan worden gevonden, meldt het BRPk dit. De burger kan de dienst dan (waarschijnlijk) niet elektronisch afnemen.
+
+[.text-center]
+.Context BRP-Koppelpunt
+image::../images/image1.png[width=389,height=307]
+
+=== Leeswijzer
+
+Het Logisch Ontwerp BRPk (LO BRPk) is een systeembeschrijving van hoe de BRP koppelpunt voorziening werkt.
+
+Het LO BRPk beschrijft:
+
+* welke diensten de voorziening biedt en op welk niveau;
+* welke gegevens de voorziening bevat;
+* hoe het Nederlands eIDAS koppelpunt aangesloten is op het BRPk.
+
+Het LO BRPk bestaat naast de Documentinformatie en deze Inleiding uit nog drie hoofdstukken.
+
+* <<_werking_van_het_brpk>> beschrijft de diensten, op welk dienstenniveau dit geleverd wordt (beschikbaarheids-percentage, toegestaan dataverlies, etc.) en op hoofdlijnen welke gegevens het BRPk bevat.
+* <<_gegevenswoordenboek>> bevat een gegevenswoordenboek. Hierin is elk gegeven beschreven dat binnen de diensten van het BRPk wordt gebruikt.
+* <<_berichtenboek>> bevat een berichtenboek waarin de berichtuitwisseling wordt beschreven van het BRPk met het Nederlands eIDAS koppelpunt en van het BRPk met de BV BSN.
+
+Voor extra en meer gedetailleerde informatie zijn verschillende documenten beschikbaar, zoals:
+
+* Overkoepelende architectuur eIDAS (ADM Board);
+* Detail architectuur BRPk (ADM Board);
+* Functioneel ontwerp BRPk (product owner BRPk);
+* Een high level design van de infrastructuur (beheerder infra);
+* Een low level design van de infrastructuur (kan op locatie bij de infra beheerder worden ingezien).
+
+== Werking van het BRPk
+
+Dit hoofdstuk beschrijft de diensten die het BRPk biedt en op welk dienstenniveau het dit doet. Daarnaast wordt op hoofdlijnen beschreven welke gegevens het BRPk bevat.
+
+=== Diensten van het BRPk
+
+Het BRPk speelt een belangrijke rol als ontzorger van de dienstverleners, zoals de Belastingdienst, UWV of Pensioenfondsen. Zonder het BRPk moeten de dienstverleners elke keer als een persoon inlogt, deze persoon op basis van buitenlandse persoonsgegevens terugvinden in de eigen administratie.
+
+Het BRPk vergemakkelijkt dit proces door een toets te doen of de persoon over een BSN beschikt en dit BSN tijdens het inloggen mee te geven aan de dienstverlener. De dienstverlener kan dan vervolgens het BSN gebruiken als zoekgegeven in de eigen administratie.
+
+Met dit doel biedt het BRPk de volgende diensten:
+
+. Het automatisch koppelen van een _UniquenessID_ aan een BSN
++
+--
+Aan de hand van meegestuurde identificerende persoonsgegevens (geslachtsnaam en geboortedatum) zoekt het BRPk op verzoek van het Nederlands eIDAS koppelpunt een BSN in de Beheervoorziening Burgerservicenummer (BV BSN), koppelt deze aan een meegestuurd UniquenessID en verstuurt het gevonden BSN versleuteld terug. +
+De EER burger wordt gevraagd om hiervoor een BSN in te voeren. Als geen BSN is ingevoerd en één BSN is gevonden, wordt de burger gevraagd om te controleren of dit gevonden BSN klopt. +
+Het BRP-Koppelpunt onthoudt de koppeling tussen het UniquenessID en het BSN.
+--
+
+. Het handmatig opzoeken van het BSN en het koppelen aan een UniquenessID
++
+--
+Het is niet altijd mogelijk automatisch een match te maken met de buitenlandse persoonsgegevens, bijvoorbeeld indien de BV BSN meer dan één BSN teruggeeft en de burger geen BSN heeft ingevoerd. In dat geval onderzoekt een gegevensbeheerder of een van de ontvangen BSN's bij de persoon hoort. Vervolgens worden het juiste BSN en het UniquenessID handmatig gekoppeld, zodat bij een volgende aanroep van het BRPk voor dit UniquenessID een BSN aan het eIDAS koppelpunt kan worden geleverd.
+--
+
+. Ontkoppelen koppeling UniquenessID - BSN
++
+--
+Omdat de aangeleverde gegevensset vanuit het buitenland beperkt is, bestaat de mogelijkheid dat een BSN ten onrechte aan een persoon wordt gekoppeld. Op verzoek van de dienstverlener of de betreffende persoon kan deze onterechte koppeling door de RvIG gegevensbeheerder ongedaan worden gemaakt om te voorkomen dat de burger, die wil inloggen, en/of de ten onrechte gekoppelde burger last blijven houden van de onterechte koppeling. +
+Als een BSN uit verkeer wordt genomen dan wordt het BSN en de UniquenessID ontkoppeld. Het eIDAS koppelpunt wordt op de hoogte gebracht van elke ontkoppeling.
+--
+
+Onderstaand schema geeft de afhandeling weer van de zoekactie in BV BSN door BRPk.
+
+[.text-center]
+.Verwerken zoekvraag
+image::../images/image3.svg[width=549,height=360]
+
+=== Dienstenniveau van het BRPk
+
+Het BRPk levert dienstverlening gedurende 7 dagen in de week en 24 uur per dag, waarbij een beschikbaarheid van 99,5% op jaarbasis gehanteerd wordt. Er dient dus rekening te worden gehouden met (on)voorzien niet operationeel zijn van het BRPk van ongeveer 44 uur op jaarbasis.
+
+Maximaal dataverlies is één etmaal. Dat betekent dat niet afgeronde koppelverzoeken van maximaal één etmaal opnieuw aangevraagd zouden moeten worden bij het optreden van dataverlies.
+
+De helpdesk voor vragen is tijdens werkdagen beschikbaar van 8.00-18.00 uur. Vragen aan de helpdesk moeten in 95% van de gevallen binnen 4 uur zijn afgehandeld (beantwoord), 98% binnen 24 uur en 100% binnen 7 dagen. Voor vragen buiten kantoortijden is er geen voorziening ingericht.
+
+=== Gegevens in het BRPk
+
+Het BRPk ontvangt persoonsgegevens van het eIDAS koppelpunt en vanuit antwoordberichten van de BV BSN. Daarnaast kan de inloggende burger een BSN invoeren.
+
+Gegevensbeheerders van RvIG voegen administratieve gegevens toe aan het BRPk bij het handmatig zoeken naar het juiste BSN en het ontkoppelen.
+
+Tenslotte worden logboeken binnen het BRPk aangehouden.
+
+==== Persoonsgegevens
+
+De volgende persoonsgegevens worden gebruikt in het BRPk:
+
+* <<UniquenessID, UniquenessID>>
+* <<Burgerservicenummer, Burgerservicenummer>>
+* <<Voornamen, Voornamen>>
+* <<AdellijkeTitelPredikaat, AdellijkeTitelPredikaat>>
+* <<VoorvoegselGeslachtsnaam, VoorvoegselGeslachtsnaam>>
+* <<Geslachtsnaam, Geslachtsnaam>>
+* <<GeslachtsnaamBijGeboorte, Geslachtsnaam bij geboorte>>
+* <<Geboortedatum, Geboortedatum>>
+* <<Geboorteplaats, Geboorteplaats>>
+* <<Geboorteland, Geboorteland>>
+* <<Geslachtsaanduiding, Geslachtsaanduiding>>
+* <<AanduidingGegevensInOnderzoekPersoon, AanduidingGegevensInOnderzoekPersoon>>
+* <<DatumIngangOnderzoekPersoon, DatumIngangOnderzoekPersoon>>
+* DatumOverlijden (wordt niet opgeslagen)
+* <<Huisnummer, Huisnummer>>
+* <<Huisletter, Huisletter>>
+* <<Huisnummertoevoeging, Huisnummertoevoeging>>
+* <<AanduidingBijHuisnummer, AanduidingBijHuisnummer>>
+* <<Postcode, Postcode>>
+* <<LandAdresBuitenland, LandAdresBuitenland>>
+* <<Adres1Buitenland, AdresBuitenland (bestaat uit 3 regels)>>
+* <<AanduidingGegevensInOnderzoekAdres, AanduidingGegevensInOnderzoekAdres>>
+* <<DatumIngangOnderzoekAdres, DatumIngangOnderzoekAdres>>
+
+==== Logboeken
+
+Het auditlogboek wordt bijgehouden om na te kunnen gaan wie wanneer wat heeft gewijzigd. Alle wijzigingen in stamtabellen, configuratie, taalinstellingen, medewerkergegevens en autorisatiegegevens worden weggeschreven in het auditlogboek. Het ontvangen en versturen van berichten wordt hier ook in weggeschreven, zodat achteraf verantwoord kan worden of communicatie met andere systemen heeft plaatsgevonden.
+
+Als een technische fout optreedt dan wordt deze weggeschreven in het systeemfoutenlogboek. Door het raadplegen van deze informatie kan door de beheerorganisatie de oorzaak van technische fouten worden achterhaald.
+
+Protocolleren is het vastleggen van alle bevragingen die door gebruikers worden gedaan op BSN's. Met het protocollogboek kan (door de beheerder) worden voldaan aan de wettelijke eis om burgers, die daarom vragen, te informeren over de gegevens die over hen zijn verstrekt. Het bevragen van het BRPk wordt niet geprotocolleerd. De bevragingen van het BRPk aan de BV BSN worden door de BV BSN geprotocolleerd.
+
+==== Bewaartermijn voor gegevens
+
+Vanuit logging worden gegevens voor een bepaalde (minimale) bewaartermijn opgeslagen. Gedurende deze periode mag men erop vertrouwen dat de gegevens nog binnen het BRPk beschikbaar zijn. Ditzelfde geldt voor de persoonsgegevens die zijn verzameld voor handmatige koppeling en die niet direct tot een koppeling hebben geleid.
+
+In onderstaande tabel zijn de minimale bewaartermijnen vermeld.
+
+[width="100%",cols="25%,75%",options="header"]
+|===
+|Doel |Bewaartermijn
+|Auditlogboek |1 jaar
+|Systeemfoutenlogboek |1 jaar
+|Gegevens voor handmatige koppeling | 1 week +
+Op basis van een evaluatie in het eerste jaar zal worden bepaald of deze termijn moet worden verruimd
+|===
+
+== Gegevenswoordenboek
+
+=== Inleiding
+
+Het BRPk bevat voornamelijk persoonsgegevens die ontvangen zijn van het Nederlands eIDAS koppelpunt (aangeduid met een Engelse naam) of opgevraagd zijn bij de BV BSN (aangeduid met een Nederlandse naam). Daarnaast bevat het BRPk berichtgegevens die worden gebruikt voor de uitwisseling van berichten met het eIDAS koppelpunt en de BV BSN.
+
+=== Gegevens in het BRPk
+
+==== Persoonsgegevens
+
+[#UniquenessID]
+//[horizontal,labelwidth=25]
+[horizontal,%autowidth.stretch]
+Elementnaam:: UniquenessID
+Toelichting:: Unieke reeks alfanumerieke tekens die gebruikt wordt als identificatie van de inloggende burger en verkregen wordt van het Nederlands eIDAS koppelpunt.
+Lengte:: 7..256
+Type:: Alfanumeriek, Formaat “aa/bb/xx.x”, waarbij aa in {AT, BE, BG, CY, CZ, DE, DK, EE, ES, FI, FR, GB, GR, HR, HU, IE, IS, IT, LI, LT, LU, LV, MT, NO, PL, PT, RO, SE, SI, SK}; bb = NL; xx..x is een string van leesbare karakters. De eerste 2 posities van deze string geven aan in welk land de burger zich heeft geauthenticeerd.
+Bron:: eIDAS koppelpunt
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#Burgerservicenummer]
+//[horizontal,labelwidth=25]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Burgerservicenummer
+Toelichting:: Burgerservicenummer van de persoon. Het nummer moet aan de elfproef voldoen.footnote:[Elfproef: Indien het nummer per cijfer wordt aangeduid (s0 s1 s2 s3 s4 s5 s6 s7 s8), dan is de volgende voorwaarde te controleren: 
+(9*s0) + (8*s1) + (7*s2) + (6*s3) + (5*s4) + (4*s5) + (3*s6) + (2*s7) + (-1*s8) is deelbaar door 11. Indien het nummer 8-cijferig is, dan moet in de elfproef een voorloopnul toegevoegd worden.]
+Lengte:: 8..9
+Type:: Numeriek
+Bron:: BV BSN en/of ingevoerd door de inloggende burger
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#Voornamen]
+//[horizontal,labelwidth=25]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Voornamen / FirstName
+Toelichting:: De verzameling namen die, gescheiden door spaties, aan de geslachtsnaam voorafgaat. Een eventueel predikaat is afgesplitst.
+Lengte:: 1..200
+Type:: Alfanumeriek
+Bron:: BV BSN (Voornamen) en eIDAS koppelpunt (FirstName)
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#AdellijkeTitelPredikaat]
+//[horizontal,labelwidth=25]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Adellijke Titel / Predikaat
+Toelichting:: Een omschrijving conform tabel 38 Tabel adellijke titel/predikaat die aangeeft welke titel of welk predikaat behoort tot de naam (bij adellijke titel: tot de geslachtsnaam, bij predikaat: tot de voornamen).
+Lengte:: 1..10
+Type:: Alfanumeriek
+Bron:: BV BSN
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#VoorvoegselGeslachtsnaam]
+//[horizontal,labelwidth=25]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Voorvoegsel Geslachtsnaam / FamilyNameInfix
+Toelichting:: Een voorvoegsel conform tabel 36 Voorvoegseltabel dat, gescheiden door een spatie, voorgaat aan de rest van de geslachtsnaam.
+Lengte:: 1..10
+Type:: Alfanumeriek
+Bron:: BV BSN (Voorvoegsel Geslachtsnaam) en eIDAS koppelpunt (FamilyNameInfix)
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#GeslachtsnaamBijGeboorte]
+//[horizontal,labelwidth=25]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Geslachtsnaam bij geboorte / BirthName
+Toelichting:: De verzameling namen bij geboorte die, gescheiden door spaties, aan de geslachtsnaam voorafgaat, een voorvoegsel dat, gescheiden door een spatie, voorgaat aan de rest van de geslachtsnaam bij geboorte, de geslachtsnaam bij geboorte.
+Lengte:: 0..200
+Type:: Alfanumeriek
+Bron:: eIDAS koppelpunt
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#Geslachtsnaam]
+//[horizontal,labelwidth=25]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Geslachtsnaam / FamilyName
+Toelichting:: De (geslachts)naam waarvan de eventuele aanwezige voorvoegsels en adellijke titel zijn afgesplitst.
+Lengte:: 1..200
+Type:: Alfanumeriek
+Bron:: BV BSN (Geslachtsnaam) en eIDAS koppelpunt (FamilyName)
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#Geboortedatum]
+//[horizontal,labelwidth=25]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Geboortedatum / DateOfBirth
+Toelichting:: De datum waarop de persoon is geboren.
+Lengte:: 8 (Geboortedatum) +
+10 (DateOfBirth)
+Type:: Numeriek, Formaat: “jjjjmmdd”. (Geboortedatum) +
+Numeriek, Formaat: “jjjj-mm-dd”. (DateOfBirth)
+Bron:: BV BSN (Geboortedatum) en eIDAS koppelpunt (DateOfBirth)
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#Geboorteplaats]
+//[horizontal,labelwidth=25]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Geboorteplaats / PlaceOfBirth
+Toelichting:: Een aanduiding die de plaatsnaam aangeeft waar de persoon is geboren. Indien de geboorteplaats een Nederlandse gemeente is, is dat een omschrijving conform tabel 33 Gemeententabel.
+Lengte:: 1..40 (Geboorteplaats) +
+0..40 (PlaceOfBirth)
+Type:: Alfanumeriek
+Bron:: BV BSN (Geboorteplaats) en eIDAS koppelpunt (PlaceOfBirth)
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#Geboorteland]
+//[horizontal,labelwidth=25]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Geboorteland
+Toelichting:: Een omschrijving conform tabel 34 Landentabel die het land aangeeft waar de persoon is geboren.
+Lengte:: 1..40
+Type:: Alfanumeriek
+Bron:: BV BSN
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#Geslachtsaanduiding]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Geslachtsaanduiding / Gender
+Toelichting:: Een aanduiding die aangeeft dat de ingeschrevene een man of vrouw is, of dat het geslacht (nog) onbekend is. +
+Mogelijke waarden (Geslachtsaanduiding): +
+
+[horizontal]
+M::: (= Man)
+O::: (= Onbekend)
+V::: (= Vrouw)
+
++
+Mogelijke waarden (Gender):
+
+[horizontal]
+M::: (= Man)
+U::: (= Onbekend)
+F::: (= Vrouw)
+
+Lengte:: 1
+Type:: Alfanumeriek
+Bron:: BV BSN (Geslachtsaanduiding) en eIDAS koppelpunt (Gender)
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#AanduidingGegevensInOnderzoekPersoon]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Aanduiding Gegevens In Onderzoek Persoon
+Toelichting:: Aanduiding die aangeeft op er een lopend onderzoek is naar de gegevens van de persoon.
+Lengte:: 1..50
+Type:: Alfanumeriek
+Bron:: BV BSN
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#DatumIngangOnderzoekPersoon]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Datum Ingang Onderzoek Persoon
+Toelichting:: De datum waarop het onderzoek naar de gegevens van de persoon is aangevangen.
+Lengte:: 8
+Type:: Numeriek, Formaat: “jjjjmmdd”.
+Bron:: BV BSN
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#Huisnummer]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Huisnummer / HouseNumber
+Toelichting:: De numerieke aanduiding die bij het adres hoort.
+Lengte:: 1..5 (Huisnummer) +
+Integer (HouseNumber)
+Type:: Alfanumeriek (Huisnummer) +
+Numeriek (HouseNumber)
+Bron:: BV BSN (Huisnummer) en eIDAS koppelpunt (HouseNumber)
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#Huisletter]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Huisletter
+Toelichting:: Een alfabetisch teken achter het huisnummer.
+Lengte:: 1
+Type:: Alfanumeriek
+Bron:: BV BSN
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#Huisnummertoevoeging]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Huisnummertoevoeging / HouseNumberSuffix
+Toelichting:: Die letters of tekens die noodzakelijk zijn om, naast huisnummer en –letter, de brievenbus te vinden zoals opgenomen in de BRP (maximaal 4 tekens).
+Lengte:: 1..4 (Huisnummertoevoeging) +
+0..5 (HouseNumberSuffix)
+Type:: Alfanumeriek
+Bron:: BV BSN (Huisnummertoevoeging) en eIDAS koppelpunt (HouseNumberSuffix)
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#AanduidingBijHuisnummer]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Aanduiding Bij Huisnummer
+Toelichting:: De aanduiding die wordt gebruikt voor adressen die niet zijn voorzien van de gebruikelijke straatnaam en huisnummeraanduidingen. +
+Mogelijke waarden: 
+
+[horizontal]
+“by”::: (= bij)
+“to”::: (= tegenover)
+
+Lengte:: 2
+Type:: Alfanumeriek
+Bron:: BV BSN
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#LocatorDesignator]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Locatie / LocatorDesignator
+Toelichting:: Huisnummer met eventueel nadere aanduidingen of andere unieke aanvullingen op een straatnaam van de gebruiker.
+Lengte:: 200
+Type:: Alfanumeriek
+Bron:: eIDAS koppelpunt
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#Postcode]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Postcode / PostalCode
+Toelichting:: Een code behorend bij de straatnaam en het huisnummer.
+Lengte:: 6 (Postcode) +
+0..12 (PostalCode)
+Type:: Alfanumeriek, Formaat: “AAAA99” (Postcode) +
+Alfanumeriek (PostalCode)
+Bron:: BV BSN (Postcode) eIDAS koppelpunt (PostalCode)
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#LandAdresBuitenland]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Land adres buitenland
+Toelichting:: Een omschrijving conform tabel 34 Landentabel, die het land aangeeft dat hoort bij het buitenlandse adres van de persoon.
+Lengte:: 1..40
+Type:: Alfanumeriek
+Bron:: BV BSN
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#Regel1AdresBuitenland]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Regel 1 adres buitenland
+Toelichting:: De eerste regel van het buitenlandse adres van de persoon zoals opgenomen in de BRP (maximaal 35 tekens).
+Lengte:: 1..35
+Type:: Alfanumeriek
+Bron:: BV BSN
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#Regel2AdresBuitenland]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Regel 2 adres buitenland
+Toelichting:: De tweede regel van het buitenlandse adres van de persoon zoals opgenomen in de BRP (maximaal 35 tekens).
+Lengte:: 1..35
+Type:: Alfanumeriek
+Bron:: BV BSN
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#Regel3AdresBuitenland]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Regel 3 adres buitenland
+Toelichting:: De derde regel van het buitenlandse adres van de persoon zoals opgenomen in de BRP (maximaal 35 tekens).
+Lengte:: 1..35
+Type:: Alfanumeriek
+Bron:: BV BSN
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#AanduidingGegevensInOnderzoekAdres]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Aanduiding Gegevens In Onderzoek Adres
+Toelichting:: Aanduiding die aangeeft of er een lopend onderzoek is naar de gegevens met betrekking tot de adresgegevens van de persoon.
+Lengte:: 1..50
+Type:: Alfanumeriek
+Bron:: BV BSN
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#DatumIngangOnderzoekAdres]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Datum Ingang Onderzoek Adres
+Toelichting:: Datum waarop een eventueel lopend onderzoek naar de gegevens met betrekking tot de adresgegevens van de persoon is aangevangen.
+Lengte:: 8
+Type:: Numeriek, Formaat: “jjjjmmdd”.
+Bron:: BV BSN
+
+==== Berichtgegevens
+[#Artifact]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Artifact
+Toelichting:: Token wat binnen het SAML protocol voor artifact binding wordt gebruikt.
+Lengte:: 44 (unencoded)
+Type:: Alfanumeriek, +
+Formaat: https://en.wikipedia.org/wiki/SAML++_++2.0#Artifact++_++Format
+Bron:: eIDAS koppelpunt en BRPk
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#ID]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: @ID
+Toelichting:: Berichtnummer, unieke aanduiding (binnen een periode van minstens 12 maanden) voor een bericht.
+Lengte:: Niet begrensd
+Type:: Alfanumeriek
+Bron:: eIDAS koppelpunt en BRPk
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#Version]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: @Version
+Toelichting:: Versie van SAML protocol.
+Lengte:: 3
+Type:: Alfanumeriek, Formaat: “2.0”
+Bron:: eIDAS koppelpunt en BRPk
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#IssueInstant]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: @IssueInstant
+Toelichting:: Datum en tijd van aanmaken bericht.
+Lengte:: 19
+Type:: Alfanumeriek, Formaat: yyyy-mm-dd hh:mm:ss
+Bron:: eIDAS koppelpunt en BRPk
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#Issuer]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Issuer
+Toelichting:: EntityID van de verzendende partij.
+Lengte:: 20
+Type:: Alfanumeriek, +
+Formaat: “++<++OIN++>++” +
+Voor het eIDAS koppelpunt en BRPk wordt het Organisatie Informatie Nummer (OIN) van de beheerpartij DICTU gehanteerd: 00000004000000149000.
+Bron:: eIDAS koppelpunt en BRPk
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#Signature]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Signature
+Toelichting:: Digitale ondertekening van de verzendende partij voor gecodeerde bericht.
+Lengte:: Niet begrensd
+Type:: Alfanumeriek
+Bron: eIDAS koppelpunt en BRPk
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#InResponseTo]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: @InResponseTo
+Toelichting:: Unieke aanduiding voor een bericht waar dit bericht een antwoord op is.
+Lengte:: Niet begrensd
+Type:: Alfanumeriek
+Bron:: eIDAS koppelpunt en BRPk
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#AssertionConsumerServiceIndex]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: @AssertionConsumerServiceIndex
+Toelichting:: Index naar URL waar eIDAS koppelpunt het antwoord op wil ontvangen. In de metadata van het eIDAS koppelpunt staat een lijst met URL's. Deze index geeft aan welke URL gebruikt moet worden bij het versturen van een antwoord.
+Lengte:: Niet begrensd
+Type:: Alfanumeriek
+Bron:: eIDAS koppelpunt
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#Status]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Status
+Toelichting:: Geeft aan of een verzoek een resultaat heeft opgeleverd “success” of niet “error”.
+Lengte:: 7
+Type:: Alfanumeriek, Formaat: “success” of “error”
+Bron:: eIDAS koppelpunt en BRPk
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#Extensions]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Extensions
+Toelichting:: Bevat het resultaat van een verzoek. Alle parameters in een resultaat worden als één string opgeleverd.
+Lengte:: Niet begrensd
+Type:: Alfanumeriek
+Bron:: eIDAS koppelpunt en BRPk
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#Assertion]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Assertion
+Toelichting:: Bevat het resultaat van een verzoek. Alle parameters in een resultaat worden als één string opgeleverd.
+Lengte:: Niet begrensd
+Type:: Alfanumeriek
+Bron:: BRPk
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#BSNRequired]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: BSNRequired
+Toelichting:: Aanduiding of de burger de dienst alleen kan afnemen indien er een BSN wordt gevonden.
+Lengte:: 5
+Type:: Alfanumeriek, Formaat: +
+“true”, indien de burger de dienst alleen kan afnemen indien er een BSN wordt gevonden. +
+”false”, indien de burger de dienst kan afnemen zonder BSN.
+Bron:: eIDAS koppelpunt
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#EncryptedID]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: EncryptedID
+Toelichting:: Bevat het BSN versleuteld met een door het BRPk aangemaakte sleutel en een door het BRPk aangemaakte sleutel. Deze is versleuteld met de actieve publieke sleutel van het BSN Koppelregister.
+Lengte:: 64
+Type:: Alfanumeriek
+Bron:: BRPk
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#StatusKoppelverzoek]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Status (Koppelverzoek)
+Toelichting:: Geeft aan of een verzoek een resultaat heeft opgeleverd “Success” of niet “Pending”.
+Lengte:: 7
+Type:: Alfanumeriek, Formaat: +
+“Success”, indien een BSN is gevonden. +
+“Pending”, indien geen BSN is gevonden en de burger zonder BSN de dienst kan afnemen bij de dienstverlener.
+Bron:: BRPk
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#OntkoppelReden]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: OntkoppelReden
+Toelichting:: Reden waarom de koppeling tussen een UniquenessID en BSN is ontkoppeld.
+Lengte:: 8
+Type:: Alfanumeriek, Formaat: +
+“WrongBSN”, indien een onterechte koppeling is gelegd. +
+“NewBSN”, indien een persoon een nieuw BSN heeft gekregen en dit BSN uit de roulatie is genomen.
+Bron:: BRPk
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#Confirmationcode]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Confirmationcode
+Toelichting:: Bevestiging of het eIDAS koppelpunt het UniquenessID heeft kunnen ontkoppelen van het BSN.
+Lengte:: 13
+Type:: Alfanumeriek, Formaat: +
+“Success”, indien de koppeling succesvol is verwijderd. +
+“UID++_++not++_++found”, indien de koppeling niet is verwijderd.
+Bron:: eIDAS koppelpunt
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#Afzender]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Afzender
+Toelichting:: Aanduiding van de afzender van het bericht.
+Lengte:: 50
+Type:: Alfanumeriek
+Bron:: BRPk
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#BerichtNr]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: BerichtNr
+Toelichting:: De voor de afzender geldende identificatie van het bericht
+Lengte:: 1..50
+Type:: Alfanumeriek
+Bron:: BV BSN en BRPk
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#IndicatieEindgebruiker]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: IndicatieEindgebruiker
+Toelichting:: Een indicatie van de achterliggende vraagsteller. Dit veld is opgenomen ten behoeve van protocollering en traceerbaarheid.
+Lengte:: 1..50
+Type:: Alfanumeriek
+Bron:: BRPk
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#Vraagnummer]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: Vraagnummer
+Toelichting:: Aanduiding van het nummer van de vraag indien er meer vragen binnen het bericht worden gesteld.
+Lengte:: 1
+Type:: Numeriek
+Bron:: BV BSN en BRPk
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#BvBsnBerichtNummer]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: BvBsnBerichtNummer
+Toelichting:: Berichtnummer Beheervoorziening BSN
+Lengte:: 1..50
+Type:: Alfanumeriek
+Bron:: BV BSN
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#BerichtResultaatCode]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: BerichtResultaatCode
+Toelichting:: Fout- of succescode bij een bericht.
+Lengte:: 1..6
+Type:: Numeriek
+Bron:: BV BSN
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#BerichtResultaatOmschrijving]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: BerichtResultaatOmschrijving
+Toelichting:: Fout- of succesomschrijving bij een bericht.
+Lengte:: 1..100
+Type:: Alfanumeriek
+Bron:: BV BSN
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#ResultaatCode]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: ResultaatCode
+Toelichting:: Fout- of succescode bij een enkele vraag.
+Lengte:: 1..6
+Type:: Numeriek
+Bron:: BV BSN
+
+//ifdef::backend-pdf[<<<]
+//ifdef::backend-html5[''']
+'''
+
+[#ResultaatOmschrijving]
+//[horizontal,labelwidth=25,itemwidth=75]
+[horizontal,%autowidth.stretch]
+Elementnaam:: ResultaatOmschrijving
+Toelichting:: Fout- of succesomschrijving bij een enkele vraag.
+Lengte:: 1..100
+Type:: Alfanumeriek
+Bron:: BV BSN
+
+== Berichtenboek
+
+=== Inleiding
+
+Dit hoofdstuk beschrijft de verschillende berichten die het BRPk met het Nederlands eIDAS koppelpunt en de BV BSN uitwisselt. Per bericht geeft het een overzicht van de gegevenssets en de mogelijke foutmeldingen. Tevens zijn grafische weergaven van de berichtcycli opgenomen.
+
+=== Berichten
+
+De volgende paragrafen geven de inhoud weer van de berichten die het BRPk uitwisselt met het Nederlands eIDAS koppelpunt, en met de BV BSN.
+
+Onderstaande tabel geeft een overzicht van de mogelijke berichten.
+
+[width="100%",cols="5%,45%,25%,25%",options="header",]
+|===
+2+|Naam logisch bericht |Afzender |Ontvanger
+4+|<<_koppelingsverzoek, Koppelingsverzoek>>
+| |<<_indienen_koppelingsverzoek, Indienen koppelingsverzoek>> |eIDAS koppelpunt |BRPk
+| |<<_verstrekken_resultaat_koppelingsverzoek, Verstrekken resultaat koppelingsverzoek>> |BRPk |eIDAS koppelpunt
+| |<<_aanvraag_aanvullende_persoonsgegevens, Aanvraag aanvullende persoonsgegevens>> |BRPk |eIDAS koppelpunt
+| |<<_resultaat_aanvullende_persoonsgegevens, Resultaat aanvullende persoonsgegevens>> |eIDAS koppelpunt |BRPk
+2+|<<_ontkoppelverzoek, Ontkoppelverzoek>> |BRPk |eIDAS koppelpunt
+2+|<<_bevraging_bv_bsn, Bevraging BV BSN>> |BRPk |BV BSN
+|===
+
+De eerste vier berichten handelen samen het koppelingsverzoek van het eIDAS koppelpunt aan BRPk af. Ze worden via het SAML protocol verstuurd. Dat betekent dat omwille van veilige communicatie een bericht in 3 deelstappen wordt verstuurd:
+
+. Afzender stuurt een bericht naar Ontvanger door de websessie van de eindgebruiker naar Ontvanger te routeren middels een http-post met hierbij een token als enige parameter.
+. Met dit token vraagt Ontvanger via een voor de eindgebruiker onzichtbaar kanaal (backchannel) aan Afzender om het werkelijke bericht.
+. Afzender stuurt het werkelijke bericht via de backchannel naar Ontvanger.
+
+Het ontkoppelverzoek en de bevraging van de BV BSN verstuurt Afzender door middel van een SOAP request, waarop Ontvanger met een SOAP response antwoordt.
+
+==== Koppelingsverzoek
+
+Onderstaand figuur geeft de cyclus van de berichtenuitwisseling weer tussen het eIDAS koppelpunt en BRPk tijdens het Koppelingsverzoek, eventueel uitgebreid met het verzoek om aanvullende persoonsgegevens.
+
+[.text-center]
+.Cyclus van Koppelingsverzoek
+image::../images/image4.png[width=546,height=922]
+
+===== Indienen koppelingsverzoek
+
+Onderstaande tabellen geven de inhoud weer van het bericht waarmee het eIDAS koppelpunt het koppelingsverzoek aanmeldt, het bericht waarmee BRPk vraagt om het koppelingsverzoek, en het werkelijke koppelingsverzoek van het eIDAS koppelpunt. Alle elementen zijn verplicht.
+
+[width="70%",cols="100%",options="header",align="center"]
+|===
+|Aanmelden Koppelingsverzoek
+|<<Artifact, Artifact>>
+|===
+
+[width="70%",cols="100%",options="header",align="center"]
+|===
+|Vraag koppelingsverzoek op
+|<<ID, @ID>>
+|<<Version, @Version>>
+|<<IssueInstant, @IssueInstant>>
+|<<Issuer, Issuer>>
+|<<Signature, Signature>>
+|<<Artifact, Artifact>>
+|===
+
+[width="70%",cols="100%",options="header",align="center"]
+|===
+|Verstrek koppelingsverzoek
+|<<ID, @ID>>
+|<<InResponseTo, @InResponseTo>>
+|<<Version, @Version>>
+|<<IssueInstant, @IssueInstant>>
+|<<AssertionConsumerServiceIndex, @AssertionConsumerServiceIndex>>
+|<<Issuer, Issuer>>
+|<<Signature, Signature>>
+|<<Status, Status>>
+|<<Extensions, Extensions>>
+|===
+
+Het veld 'Extensions' bevat de volgende gegevens:
+
+* <<UniquenessID, UniquenessID>>
+* <<Voornamen, FirstName>>
+* <<VoorvoegselGeslachtsnaam, FamilyNameInfix>>
+* <<Geslachtsnaam, FamilyName>>
+* <<Geboortedatum, DateOfBirth>>
+* <<BSNRequired, BSNRequired>>
+
+===== Verstrekken resultaat koppelingsverzoek
+
+Onderstaande tabellen geven de inhoud weer van het bericht waarmee BRPk het resultaat van het koppelverzoek aanmeldt, het antwoord waarmee het eIDAS koppelpunt om het werkelijke resultaat vraagt, en het werkelijke resultaat van BRPk. Alle elementen zijn verplicht.
+
+[width="70%",cols="100%",options="header",align="center"]
+|===
+|Aanmelden resultaat koppelingsverzoek
+|<<Artifact, Artifact>>
+|===
+
+[width="70%",cols="100%",options="header",align="center"]
+|===
+|Vraag resultaat koppelingsverzoek op
+|<<ID, @ID>>
+|<<Version, @Version>>
+|<<IssueInstant, @IssueInstant>>
+|<<Issuer, Issuer>>
+|<<Signature, Signature>>
+|<<Artifact, Artifact>>
+|===
+
+[width="70%",cols="100%",options="header",align="center"]
+|===
+|Verstrek resultaat koppelingsverzoek
+|<<ID, @ID>>
+|<<InResponseTo, @InResponseTo>>
+|<<Version, @Version>>
+|<<IssueInstant, @IssueInstant>>
+|<<Issuer, Issuer>>
+|<<Signature, Signature>>
+|<<Status, Status>>
+|<<Assertion, Assertion>>
+|===
+
+Het veld 'Assertion' bevat de volgende gegevens:
+
+* <<EncryptedID, EncryptedID>>
+* <<StatusKoppelverzoek, Status (Koppelverzoek)>>
+
+===== Aanvraag aanvullende persoonsgegevens
+
+Onderstaande tabellen geven de inhoud weer van het bericht waarmee BRPk zijn verzoek om aanvullende persoonsgegevens aanmeldt, het antwoord waarmee het eIDAS koppelpunt om het werkelijke verzoek vraagt, en het werkelijke verzoek van BRPk. Alle elementen zijn verplicht.
+
+[width="70%",cols="100%",options="header",align="center"]
+|===
+|Aanmelden verzoek om aanvullende persoonsgegevens
+|<<Artifact, Artifact>>
+|===
+
+[width="70%",cols="100%",options="header",align="center"]
+|===
+|Vraag verzoek om aanvullende persoonsgegevens op
+|<<ID, @ID>>
+|<<Version, @Version>>
+|<<IssueInstant, @IssueInstant>>
+|<<Issuer, Issuer>>
+|<<Signature, Signature>>
+|<<Artifact, Artifact>>
+|===
+
+[width="70%",cols="100%",options="header",align="center"]
+|===
+|Verstrek verzoek om aanvullende persoonsgegevens
+|<<ID, @ID>>
+|<<InResponseTo, @InResponseTo>>
+|<<Version, @Version>>
+|<<IssueInstant, @IssueInstant>>
+|<<Issuer, Issuer>>
+|<<Signature, Signature>>
+|<<Status, Status>>
+|<<Extensions, Extensions>>
+|===
+
+Het veld 'Extensions' bevat de volgende gegevens:
+
+* <<UniquenessID, UniquenessID>>
+* <<Geboortedatum, BirthName (optioneel)>>
+* <<Geslachtsaanduiding, Gender (optioneel)>>
+* <<Geboorteplaats, PlaceOfBirth (optioneel)>>
+* <<LocatorDesignator, LocatorDesignator (optioneel)>>
+* <<Postcode, PostalCode (optioneel)>>
+
+===== Resultaat aanvullende persoonsgegevens
+
+Onderstaande tabellen geven de inhoud weer van het bericht waarmee het eIDAS koppelpunt de aanvullende persoonsgegevens aanmeldt, het bericht waarmee BRPk vraagt om de aanvullende persoonsgegevens, en het bericht met de werkelijke aanvullende persoonsgegevens van het eIDAS koppelpunt. Alle elementen zijn verplicht.
+
+[width="70%",cols="100%",options="header",align="center"]
+|===
+|Aanmelden aanvullende persoonsgegevens
+|<<Artifact, Artifact>>
+|===
+
+[width="70%",cols="100%",options="header",align="center"]
+|===
+|Vraag aanvullende persoonsgegevens op
+|<<ID, @ID>>
+|<<Version, @Version>>
+|<<IssueInstant, @IssueInstant>>
+|<<Issuer, Issuer>>
+|<<Signature, Signature>>
+|<<Artifact, Artifact>>
+|===
+
+[width="70%",cols="100%",options="header",align="center"]
+|===
+|Verstrek aanvullende persoonsgegevens
+|<<ID, @ID>>
+|<<InResponseTo, @InResponseTo>>
+|<<Version, @Version>>
+|<<IssueInstant, @IssueInstant>>
+|<<AssertionConsumerServiceIndex, @AssertionConsumerServiceIndex>>
+|<<Issuer, Issuer>>
+|<<Signature, Signature>>
+|<<Status, Status>>
+|<<Extensions, Extensions>>
+|===
+
+Het veld 'Extensions' bevat de volgende gegevens:
+
+* <<UniquenessID, UniquenessID>>
+* <<GeslachtsnaamBijGeboorte, BirthName (optioneel)>>
+* <<Geslachtsaanduiding, Gender (optioneel)>>
+* <<Geboorteplaats, PlaceOfBirth (optioneel)>>
+* <<Postcode, PostalCode (optioneel)>>
+* <<LocatorDesignator, LocatorDesignator (optioneel)>>
+* <<Huisnummer, HouseNumber (optioneel)>>
+* <<Huisnummertoevoeging, HouseNumberSuffix (optioneel)>>
+
+==== Ontkoppelverzoek
+
+Onderstaand figuur geeft de berichtenuitwisseling weer in het ontkoppelverzoek.
+
+[.text-center]
+.Cyclus van Ontkoppelverzoek
+image::../images/image5.png[width=461,height=200]
+
+Onderstaande tabellen geven de inhoud weer van het vraagbericht (SOAP request) en die van het antwoordbericht (SOAP response). Alle elementen zijn verplicht.
+
+[width="70%",cols="100%",options="header",align="center"]
+|===
+|Bericht Ontkoppelen BSN van eIDAS Identiteit
+|<<ID, @ID>>
+|<<IssueInstant, @IssueInstant>>
+|<<Signature, Signature>>
+|<<UniquenessID, UniquenessID>>
+|<<OntkoppelReden, OntkoppelReden>>
+|===
+
+[width="70%",cols="100%",options="header",align="center"]
+|===
+|Response Ontkoppelen BSN van eIDAS Identiteit
+|<<ID, @ID>>
+|<<InResponseTo, @InResponseTo>>
+|<<IssueInstant, @IssueInstant>>
+|<<Confirmationcode, Confirmationcode>>
+|===
+
+==== Bevraging BV BSN
+
+Onderstaand figuur geeft de berichtenuitwisseling weer van de bevraging van de BV BSN.
+
+[.text-center]
+.Berichtencyclus van de bevraging van de BV BSN
+image::../images/image6.png[width=247,height=163]
+
+Onderstaande tabellen geven de inhoud weer van het vraagbericht (SOAP request) en die van het antwoordbericht (SOAP response). Alle elementen zijn verplicht.
+
+[width="40%",cols="100%",options="header",align="center"]
+|===
+|Opvragen kandidatenfootnote:[De velden met cursief gedrukte namen komen tweemaal voor. Eenmaal met de geslachtsaanduiding 'Man' en eenmaal met 'Vrouw'. Geslachtsnaam wordt gevuld met de 'FamilyName' uit het Koppelingsverzoek, Geboortedatum wordt gevuld met de DateOfBirth uit het Koppelingsverzoek.]
+
+|<<Afzender, Afzender>>
+|<<BerichtNr, BerichtNr>>
+|<<IndicatieEindgebruiker, IndicatieEindgebruiker>>
+|<<Vraagnummer, _Vraagnummer_>>
+|<<Geslachtsnaam, _Geslachtsnaam_>>
+|<<Geboortedatum, _Geboortedatum_>>
+|<<Geslachtsaanduiding, _Geslachtsaanduiding_>>
+|===
+
+[width="40%",cols="100%",options="header",align="center"]
+|===
+|Verkrijgen kandidatenfootnote:[De velden Resultaatcode, ResultaatOmschrijving en Vraagnummer komen minimaal tweemaal en maximaal twintig maal voor in dit antwoord. De velden met cursief gedrukte namen kunnen nul tot twintig maal voorkomen.]
+
+|<<BerichtNr, BerichtNr>>
+|<<BvBsnBerichtNummer, BvBsnBerichtNummer>>
+|<<BerichtResultaatCode, BerichtResultaatCode>>
+|<<BerichtResultaatOmschrijving, BerichtResultaatOmschrijving>>
+|<<ResultaatCode, _ResultaatCode_>>
+|<<ResultaatOmschrijving, _ResultaatOmschrijving_>>
+|<<Vraagnummer, _Vraagnummer_>>
+|<<Burgerservicenummer, _Burgerservicenummer_>>
+|<<Voornamen, _Voornamen_>>
+|<<AdellijkeTitelPredikaat, _AdellijkeTitelPredikaat_>>
+|<<VoorvoegselGeslachtsnaam, _VoorvoegselGeslachtsnaam_>>
+|<<Geslachtsnaam, _Geslachtsnaam_>>
+|<<Geboortedatum, _Geboortedatum_>>
+|<<Geboorteplaats, _Geboorteplaats_>>
+|<<Geboorteland, _Geboorteland_>>
+|<<Geslachtsaanduiding, _Geslachtsaanduiding_>>
+|<<AanduidingGegevensInOnderzoekPersoon, _AanduidingGegevensInOnderzoek Persoon_>>
+|<<DatumIngangOnderzoekPersoon, _DatumIngangOnderzoekPersoon_>>
+|DatumOverlijden
+|<<Huisnummer, _Huisnummer_>>
+|<<Huisletter, _Huisletter_>>
+|<<Huisnummertoevoeging, _Huisnummertoevoeging_>>
+|<<AanduidingBijHuisnummer, _AanduidingBijHuisnummer_>>
+|<<Postcode, _Postcode_>>
+|<<LandAdresBuitenland, _LandAdresBuitenland_>>
+|<<Regel1AdresBuitenland, _Regel1AdresBuitenland_>>
+|<<Regel2AdresBuitenland, _Regel2AdresBuitenland_>>
+|<<Regel3AdresBuitenland, _Regel3AdresBuitenland_>>
+|<<AanduidingGegevensInOnderzoekAdres, _AanduidingGegevensInOnderzoekAdres_>>
+|<<DatumIngangOnderzoekAdres, _DatumIngangOnderzoekAdres_>>
+|===
+
+== Beschrijvende woordenlijst
+
+[width="100%",cols="18%,82%",options="header",]
+|===
+|Begrip |Omschrijving
+|Afzender |Met de “identificatie van de afzender” wordt bedoeld degene van wie een bericht afkomstig is. De afzender mag zelf een unieke logische naam van zijn entiteit kiezen. De “Distinguished Name” uit gebruikte digitale certificaat kan als suggestie dienen.
+|Bericht |Een bericht bestaat uit een vraagbericht (afkomstig van de afzender) en een antwoordbericht (dat gestuurd wordt vanuit BV BSN, n.a.v. informatie die verkregen is uit de bronsystemen).
+|BSN |Burgerservicenummer
+|BV BSN |Beheervoorziening BSN
+|BRP |Basisregistratie Personen
+|RvIG |Rijksdienst voor Identiteitsgegevens
+|SOAP |Simple Object Access Protocol, een computerprotocol dat wordt gebruikt voor communicatie tussen verschillende componenten middels XML-berichten.
+|===
