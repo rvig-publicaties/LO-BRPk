@@ -21,6 +21,7 @@
 :appendix-refsig: bijlage
 :stem: latexmath
 :eqnums: all
+:imagesdir: ../images
 
 == Documentinformatie
 
@@ -67,7 +68,7 @@ Als het BSN is gevonden, stuurt het Nederlandse eIDAS koppelpunt dit mee naar de
 
 [.text-center]
 .Context BRP-Koppelpunt
-image::../images/image1.png[width=389,height=307]
+image::image1.png[width=389,height=307]
 
 === Leeswijzer
 
@@ -130,7 +131,7 @@ Onderstaand schema geeft de afhandeling weer van de zoekactie in BV BSN door BRP
 
 [.text-center]
 .Verwerken zoekvraag
-image::../images/image3.svg[width=549,height=360]
+image::image3.svg[width=549,height=360]
 
 === Dienstenniveau van het BRPk
 
@@ -931,7 +932,7 @@ Onderstaand figuur geeft de cyclus van de berichtenuitwisseling weer tussen het 
 
 [.text-center]
 .Cyclus van Koppelingsverzoek
-image::../images/image4.png[width=546,height=922]
+image::image4.png[width=546,height=922]
 
 ===== Indienen koppelingsverzoek
 
@@ -1111,7 +1112,7 @@ Onderstaand figuur geeft de berichtenuitwisseling weer in het ontkoppelverzoek.
 
 [.text-center]
 .Cyclus van Ontkoppelverzoek
-image::../images/image5.png[width=461,height=200]
+image::image5.png[width=461,height=200]
 
 Onderstaande tabellen geven de inhoud weer van het vraagbericht (SOAP request) en die van het antwoordbericht (SOAP response). Alle elementen zijn verplicht.
 
@@ -1140,7 +1141,7 @@ Onderstaand figuur geeft de berichtenuitwisseling weer van de bevraging van de B
 
 [.text-center]
 .Berichtencyclus van de bevraging van de BV BSN
-image::../images/image6.png[width=247,height=163]
+image::image6.png[width=247,height=163]
 
 Onderstaande tabellen geven de inhoud weer van het vraagbericht (SOAP request) en die van het antwoordbericht (SOAP response). Alle elementen zijn verplicht.
 
